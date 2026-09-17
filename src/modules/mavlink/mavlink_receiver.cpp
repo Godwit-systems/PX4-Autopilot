@@ -145,6 +145,7 @@ void
 MavlinkReceiver::handle_message(mavlink_message_t *msg)
 {
 	switch (msg->msgid) {
+
 	case MAVLINK_MSG_ID_COMMAND_LONG:
 		handle_message_command_long(msg);
 		break;
@@ -330,9 +331,11 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 #if defined(CONFIG_MODULES_VISION_TARGET_ESTIMATOR) && CONFIG_MODULES_VISION_TARGET_ESTIMATOR
 #if defined(MAVLINK_MSG_ID_TARGET_RELATIVE)
 
-	case MAVLINK_MSG_ID_TARGET_RELATIVE:
+	case MAVLINK_MSG_ID_TARGET_RELATIVE:{
 		handle_message_target_relative(msg);
+                PX4_INFO("message resived");
 		break;
+	}
 #endif // MAVLINK_MSG_ID_TARGET_RELATIVE
 
 #if defined(MAVLINK_MSG_ID_TARGET_ABSOLUTE)
