@@ -331,11 +331,9 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 #if defined(CONFIG_MODULES_VISION_TARGET_ESTIMATOR) && CONFIG_MODULES_VISION_TARGET_ESTIMATOR
 #if defined(MAVLINK_MSG_ID_TARGET_RELATIVE)
 
-	case MAVLINK_MSG_ID_TARGET_RELATIVE:{
+	case MAVLINK_MSG_ID_TARGET_RELATIVE:
 		handle_message_target_relative(msg);
-                PX4_INFO("message resived");
 		break;
-	}
 #endif // MAVLINK_MSG_ID_TARGET_RELATIVE
 
 #if defined(MAVLINK_MSG_ID_TARGET_ABSOLUTE)
@@ -3304,6 +3302,18 @@ MavlinkReceiver::handle_message_target_relative(mavlink_message_t *msg)
 {
 	mavlink_target_relative_t target_relative;
 	mavlink_msg_target_relative_decode(msg, &target_relative);
+
+	PX4_INFO("target_relative: ts=%" PRIu64 " id=%" PRIu8 " frame=%" PRIu8 " type=%" PRIu8,
+		 target_relative.timestamp, target_relative.id, target_relative.frame, target_relative.type);
+	PX4_INFO("target_relative: xyz=%.3f %.3f %.3f pos_std=%.3f %.3f %.3f yaw_std=%.3f",
+		 (double)target_relative.x, (double)target_relative.y, (double)target_relative.z,
+		 (double)target_relative.pos_std[0], (double)target_relative.pos_std[1], (double)target_relative.pos_std[2],
+		 (double)target_relative.yaw_std);
+	PX4_INFO("target_relative: q_target=%.3f %.3f %.3f %.3f q_sensor=%.3f %.3f %.3f %.3f",
+		 (double)target_relative.q_target[0], (double)target_relative.q_target[1],
+		 (double)target_relative.q_target[2], (double)target_relative.q_target[3],
+		 (double)target_relative.q_sensor[0], (double)target_relative.q_sensor[1],
+		 (double)target_relative.q_sensor[2], (double)target_relative.q_sensor[3]);
 
 	vehicle_attitude_s	vehicle_attitude;
 	vehicle_local_position_s vehicle_local_position;

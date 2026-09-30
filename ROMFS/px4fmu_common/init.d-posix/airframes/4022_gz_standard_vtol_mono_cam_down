@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# @name Gazebo Standard VTOL mono cam down
+#
+# @type Standard VTOL
+#
+
+PX4_SIM_MODEL=${PX4_SIM_MODEL:=standard_vtol_mono_cam_down}
+
+. ${R}etc/init.d-posix/airframes/4004_gz_standard_vtol

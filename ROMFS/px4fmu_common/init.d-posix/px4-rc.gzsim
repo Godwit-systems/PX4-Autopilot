@@ -37,6 +37,15 @@ else
 	exit 1
 fi
 
+# Model directory and Gazebo plugin paths. Load this even when attaching to a
+# server that is already running: that process does not inherit this environment,
+# and the spawn URI below is built from PX4_GZ_MODELS.
+if [ -f ./gz_env.sh ]; then
+	. ./gz_env.sh
+elif [ -f ../gz_env.sh ]; then
+	. ../gz_env.sh
+fi
+
 # If not standalone launch the world
 if [ -z "${PX4_GZ_STANDALONE}" ]; then
 
@@ -139,13 +148,32 @@ if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 
 	echo "INFO  [init] Spawning Gazebo model"
 
+	if [ -z "${PX4_GZ_MODELS}" ] || [ ! -f "${PX4_GZ_MODELS}/${MODEL_NAME}/model.sdf" ]; then
+		echo "ERROR [init] Gazebo model SDF not found (PX4_GZ_MODELS='${PX4_GZ_MODELS}', model='${MODEL_NAME}')"
+		exit 1
+	fi
+
+	# file:// finds model.sdf, but meshes inside it use model://. A server that
+	# was started without GZ_SIM_RESOURCE_PATH will not see this shell's env.
+	${gz_command} service -s "/gazebo/resource_paths/add" \
+			--reqtype gz.msgs.StringMsg_V \
+			--reptype gz.msgs.Empty \
+			--timeout 1000 \
+			--req "data: \"${PX4_GZ_MODELS}\"" > /dev/null 2>&1
+
 	# include the actual SDF in this one, containing the pose if given
 	sdf_str="<sdf version=\"1.6\"> <include> <uri>file://${PX4_GZ_MODELS}/${MODEL_NAME}/model.sdf</uri> ${sdf_pose_str} </include> </sdf>"
 
-	# Spawn model
-	${gz_command} service -s "/world/${PX4_GZ_WORLD}/create" --reqtype gz.msgs.EntityFactory \
+	# Spawn model. Do not discard the response: a failed create used to look like success.
+	spawn_result=$(${gz_command} service -s "/world/${PX4_GZ_WORLD}/create" --reqtype gz.msgs.EntityFactory \
 			--reptype gz.msgs.Boolean --timeout 5000 \
-			--req "name: \"${MODEL_NAME_INSTANCE}\", allow_renaming: false, sdf: '${sdf_str}'" > /dev/null 2>&1
+			--req "name: \"${MODEL_NAME_INSTANCE}\", allow_renaming: false, sdf: '${sdf_str}'" 2>&1) || true
+
+	if ! echo "${spawn_result}" | grep -q "data: true"; then
+		echo "ERROR [init] Failed to spawn ${MODEL_NAME_INSTANCE} in world ${PX4_GZ_WORLD}"
+		echo "${spawn_result}"
+		exit 1
+	fi
 
 	# Wait for model to spawn
 	sleep 1
@@ -215,6 +243,18 @@ elif [ -n "${PX4_GZ_MODEL_NAME}" ]; then
 else
 	echo "ERROR [init] failed to pass either PX4_GZ_MODEL_NAME or PX4_SIM_MODEL"
 	exit 1
+fi
+
+# A GUI `gz sim` starts paused and sim time stays at 0. Unpause only after
+# gz_bridge is up: it syncs the lockstep clock from the world clock, and IMU
+# stamps are min(gz header, that clock). Unpausing earlier lets sim time run
+# before the clock is synced.
+if [ -n "${PX4_GZ_WORLD}" ]; then
+	${gz_command} service -s "/world/${PX4_GZ_WORLD}/control" \
+		--reqtype gz.msgs.WorldControl \
+		--reptype gz.msgs.Boolean \
+		--timeout 1000 \
+		--req "pause: false" > /dev/null 2>&1
 fi
 
 # NOTE: Only for rover_mecanum and spacecraft_2d. All other models have
