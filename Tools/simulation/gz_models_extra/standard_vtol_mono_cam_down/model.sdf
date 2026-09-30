@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf version='1.9'>
+  <model name='standard_vtol_mono_cam_down'>
+    <self_collide>false</self_collide>
+    <include merge='true'>
+      <uri>standard_vtol</uri>
+    </include>
+    <include merge='true'>
+      <uri>model://mono_cam</uri>
+      <!-- Belly-mounted, pitched 90 deg so the camera +X axis looks down (Gazebo Z-up). -->
+      <pose>0.1 0 -0.13 0 1.5708 0</pose>
+      <name>mono_cam</name>
+    </include>
+    <joint name="CameraJoint" type="fixed">
+      <parent>base_link</parent>
+      <child>camera_link</child>
+      <pose relative_to="base_link">0.1 0 -0.13 0 1.5708 0</pose>
+    </joint>
+  </model>
+</sdf>

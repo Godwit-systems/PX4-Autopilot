@@ -148,8 +148,15 @@ if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 
 	echo "INFO  [init] Spawning Gazebo model"
 
-	if [ -z "${PX4_GZ_MODELS}" ] || [ ! -f "${PX4_GZ_MODELS}/${MODEL_NAME}/model.sdf" ]; then
-		echo "ERROR [init] Gazebo model SDF not found (PX4_GZ_MODELS='${PX4_GZ_MODELS}', model='${MODEL_NAME}')"
+	model_dir=""
+	if [ -n "${PX4_GZ_MODELS}" ] && [ -f "${PX4_GZ_MODELS}/${MODEL_NAME}/model.sdf" ]; then
+		model_dir="${PX4_GZ_MODELS}"
+	elif [ -n "${PX4_GZ_MODELS_EXTRA}" ] && [ -f "${PX4_GZ_MODELS_EXTRA}/${MODEL_NAME}/model.sdf" ]; then
+		model_dir="${PX4_GZ_MODELS_EXTRA}"
+	fi
+
+	if [ -z "${model_dir}" ]; then
+		echo "ERROR [init] Gazebo model SDF not found (PX4_GZ_MODELS='${PX4_GZ_MODELS}', PX4_GZ_MODELS_EXTRA='${PX4_GZ_MODELS_EXTRA}', model='${MODEL_NAME}')"
 		exit 1
 	fi
 
@@ -159,10 +166,10 @@ if [ -n "${PX4_SIM_MODEL#*gz_}" ] && [ -z "${PX4_GZ_MODEL_NAME}" ]; then
 			--reqtype gz.msgs.StringMsg_V \
 			--reptype gz.msgs.Empty \
 			--timeout 1000 \
-			--req "data: \"${PX4_GZ_MODELS}\"" > /dev/null 2>&1
+			--req "data: \"${PX4_GZ_MODELS}\" data: \"${PX4_GZ_MODELS_EXTRA}\"" > /dev/null 2>&1
 
 	# include the actual SDF in this one, containing the pose if given
-	sdf_str="<sdf version=\"1.6\"> <include> <uri>file://${PX4_GZ_MODELS}/${MODEL_NAME}/model.sdf</uri> ${sdf_pose_str} </include> </sdf>"
+	sdf_str="<sdf version=\"1.6\"> <include> <uri>file://${model_dir}/${MODEL_NAME}/model.sdf</uri> ${sdf_pose_str} </include> </sdf>"
 
 	# Spawn model. Do not discard the response: a failed create used to look like success.
 	spawn_result=$(${gz_command} service -s "/world/${PX4_GZ_WORLD}/create" --reqtype gz.msgs.EntityFactory \
