@@ -58,6 +58,7 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/payload_delivery_target.h>
 #include <uORB/topics/differential_pressure.h>
 #include <uORB/topics/sensor_gnss.h>
 #include <uORB/topics/sensor_optical_flow.h>
@@ -81,6 +82,7 @@
 #include <gz/msgs/laserscan.pb.h>
 #include <gz/msgs/stringmsg.pb.h>
 #include <gz/msgs/scene.pb.h>
+#include <gz/msgs/vector3d.pb.h>
 // Custom PX4 proto
 #include <opticalflow.pb.h>
 
@@ -136,6 +138,7 @@ private:
 	void laserScanCallback(const gz::msgs::LaserScan &msg);
 	void opticalFlowCallback(const px4::msgs::OpticalFlow &msg);
 	void magnetometerCallback(const gz::msgs::Magnetometer &msg);
+	void publishPayloadThrowTarget(const payload_delivery_target_s &target);
 
 	static void rotateQuaternion(gz::math::Quaterniond &q_FRD_to_NED, const gz::math::Quaterniond q_FLU_to_ENU);
 
@@ -145,6 +148,8 @@ private:
 			 float &vel_north, float &vel_east, float &vel_down);
 
 	uORB::SubscriptionInterval                    _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+	uORB::Subscription                            _payload_delivery_target_sub{ORB_ID(payload_delivery_target)};
+	uORB::Subscription                            _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 
 	// simulated sensors using the general-purpose driver wrappers
 	PX4Accelerometer _px4_accel{1310988}; // 1310988: DRV_IMU_DEVTYPE_SIM, BUS: 1, ADDR: 1, TYPE: SIMULATION
@@ -186,7 +191,9 @@ private:
 	float _temperature{15.0f}; // default temperature in Celsius
 
 	bool _realtime_clock_set{false};
+	bool _gz_ned_valid{false};
 	gz::transport::Node _node;
+	gz::transport::Node::Publisher _payload_throw_pub;
 
 	// GPS noise model
 	float _gps_pos_noise_n = 0.0f;

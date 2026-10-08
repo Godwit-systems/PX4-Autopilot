@@ -16,5 +16,27 @@
       <child>camera_link</child>
       <pose relative_to="base_link">0.1 0 -0.13 0 1.5708 0</pose>
     </joint>
+    <!-- Belly clearance: fuselage collision ends at z=-0.095 on base_link. -->
+    <include>
+      <uri>model://payload</uri>
+      <name>payload</name>
+      <pose relative_to="base_link">0 0 -0.14 0 0 0</pose>
+    </include>
+    <!-- Release with: gz topic -t /payload/detach -m gz.msgs.Empty -p ' ' -->
+    <plugin filename="gz-sim-detachable-joint-system"
+            name="gz::sim::systems::DetachableJoint">
+      <parent_link>base_link</parent_link>
+      <child_model>payload</child_model>
+      <child_link>link</child_link>
+      <detach_topic>/payload/detach</detach_topic>
+      <attach_topic>/payload/attach</attach_topic>
+    </plugin>
+    <!-- Throws the payload at the impact point published on /payload/throw_target. -->
+    <plugin filename="libPayloadThrowSystem.so" name="px4::PayloadThrow">
+      <child_model>payload</child_model>
+      <child_link>link</child_link>
+      <detach_topic>/payload/detach</detach_topic>
+      <target_topic>/payload/throw_target</target_topic>
+    </plugin>
   </model>
 </sdf>

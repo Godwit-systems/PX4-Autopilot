@@ -167,6 +167,8 @@ int GZBridge::init()
 
 #endif // CONFIG_MODULES_GIMBAL
 
+	_payload_throw_pub = _node.Advertise<gz::msgs::Vector3d>("/payload/throw_target");
+
 	ScheduleNow();
 	return OK;
 }
@@ -195,6 +197,12 @@ void GZBridge::Run()
 		_mixing_interface_servo.updateParams();
 		_mixing_interface_wheel.updateParams();
 		_gimbal.updateParams();
+	}
+
+	payload_delivery_target_s payload_target;
+
+	if (_payload_delivery_target_sub.update(&payload_target)) {
+		publishPayloadThrowTarget(payload_target);
 	}
 
 	ScheduleDelayed(10_ms);
@@ -511,6 +519,7 @@ void GZBridge::poseInfoCallback(const gz::msgs::Pose_V &msg)
 
 			_position_prev = position;
 			_velocity_prev = velocity;
+			_gz_ned_valid = true;
 
 			local_position_groundtruth.ax = acceleration(0);
 			local_position_groundtruth.ay = acceleration(1);
@@ -546,6 +555,34 @@ void GZBridge::poseInfoCallback(const gz::msgs::Pose_V &msg)
 			_lpos_ground_truth_pub.publish(local_position_groundtruth);
 			return;
 		}
+	}
+}
+
+void GZBridge::publishPayloadThrowTarget(const payload_delivery_target_s &target)
+{
+	// payload_delivery_target is in the EKF local NED frame. Shift it by the
+	// current difference between that frame and the Gazebo vehicle pose so the
+	// impact point is in the Gazebo world, then convert NED to ENU.
+	float north = target.x;
+	float east = target.y;
+	float down = target.z;
+
+	vehicle_local_position_s local_position{};
+
+	if (_gz_ned_valid && _vehicle_local_position_sub.copy(&local_position)
+	    && local_position.xy_valid && local_position.z_valid) {
+		north += static_cast<float>(_position_prev(0) - static_cast<double>(local_position.x));
+		east += static_cast<float>(_position_prev(1) - static_cast<double>(local_position.y));
+		down += static_cast<float>(_position_prev(2) - static_cast<double>(local_position.z));
+	}
+
+	gz::msgs::Vector3d impact;
+	impact.set_x(east);
+	impact.set_y(north);
+	impact.set_z(-down);
+
+	if (!_payload_throw_pub.Publish(impact)) {
+		PX4_WARN("failed to publish /payload/throw_target");
 	}
 }
 

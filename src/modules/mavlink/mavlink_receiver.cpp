@@ -3370,6 +3370,37 @@ MavlinkReceiver::handle_message_target_relative(mavlink_message_t *msg)
 		return;
 	}
 
+	// Impact point for the simulated payload throw, in local NED.
+	{
+		matrix::Vector3f impact_ned(target_relative.x, target_relative.y, target_relative.z);
+		bool impact_valid = false;
+
+		if (target_relative.frame == TARGET_OBS_FRAME_LOCAL_NED) {
+			impact_valid = true;
+
+		} else if (_vehicle_local_position_sub.copy(&vehicle_local_position)
+			   && vehicle_local_position.xy_valid && vehicle_local_position.z_valid) {
+
+			if (target_relative.frame == TARGET_OBS_FRAME_BODY_FRD || target_relative.frame == TARGET_OBS_FRAME_OTHER) {
+				impact_ned = q_sensor.rotateVector(impact_ned);
+			}
+
+			impact_ned(0) += vehicle_local_position.x;
+			impact_ned(1) += vehicle_local_position.y;
+			impact_ned(2) += vehicle_local_position.z;
+			impact_valid = true;
+		}
+
+		if (impact_valid) {
+			payload_delivery_target_s payload_target{};
+			payload_target.timestamp = hrt_absolute_time();
+			payload_target.x = impact_ned(0);
+			payload_target.y = impact_ned(1);
+			payload_target.z = impact_ned(2);
+			_payload_delivery_target_pub.publish(payload_target);
+		}
+	}
+
 	// Forward target to the vision target estimator (VTE) or precland based VTE_EN
 	int32_t vte_enabled = 0;
 
